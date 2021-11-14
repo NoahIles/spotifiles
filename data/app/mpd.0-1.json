@@ -15,10 +15,6 @@
             "num_followers": 1, 
             "tracks": [
                 {
-                    "pid": 0,
-                    "name": "Throwbacks"
-                }, 
-                {
                     "pos": 0, 
                     "artist_name": "Missy Elliott", 
                     "track_uri": "spotify:track:0UaMYEvWZi0ZqiDOoHU3YI", 
