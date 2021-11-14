@@ -40,12 +40,13 @@ Create TABLE IF NOT EXISTS playlists(
 
 -- drop table if exists tracks; 
 CREATE TABLE IF NOT EXISTS tracks(
-    t_id INT PRIMARY KEY NOT NULL,
-    t_name VARCHAR(60) NOT NULL,
     t_artists VARCHAR(100) NOT NULL,
-    t_album VARCHAR(60) NOT NULL,
-    t_album_art VARCHAR(100) NOT NULL,
-    t_duration VARCHAR(25) NOT NULL
+    t_uri INT PRIMARY KEY NOT NULL,
+    t_artist_uri VARCHAR(65) NOT NULL,
+    t_name VARCHAR(60) NOT NULL,
+    t_album_uri VARCHAR(65) NOT NULL,
+    t_duration VARCHAR(25) NOT NULL,
+    t_album VARCHAR(60) NOT NULL
 );
 
 -- drop table if exists playlist_Contents;

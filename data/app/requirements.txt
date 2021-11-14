@@ -2,3 +2,4 @@ peewee==3.14.8
 pymysql==1.0.2
 ipython>=7.29.0
 cryptography==35.0.0
+# pandas==1.3.4

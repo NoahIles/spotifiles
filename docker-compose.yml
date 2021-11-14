@@ -1,10 +1,8 @@
 networks: 
   backend:
-#     type: vxlan
-#     vni: 100
-#     mtu: 1450
 
 services: 
+  #FAST API Service for data IO
   app: 
     build:
       context: .
@@ -23,7 +21,6 @@ services:
 
   # Mysql Database 
   db: 
-    # image: mysql
     build: 
       context: .
       dockerfile: Dockerfile
@@ -54,6 +51,7 @@ services:
     container_name: l8-nginx
     depends_on:
       - db
+  
   #PHP-MYADMIN:
   adminer:
     image: adminer
@@ -64,6 +62,3 @@ services:
       - 8081:8080
     depends_on:
       - db
-      
-    
-      # GRANT ALL PRIVILEGES ON *.* TO 'root'@'%'; FLUSH PRIVILEGES;
