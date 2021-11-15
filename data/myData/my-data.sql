@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS tracks(
 CREATE TABLE IF NOT EXISTS playlist_Contents(
     playlist_id INT NOT NULL,
     track_uri VARCHAR(50) NOT NULL,
-    FOREIGN KEY (playlist_id) REFERENCES playlists(pl_id) ON DELETE CASCADE,
-    FOREIGN KEY (track_uri) REFERENCES tracks(track_uri) ON DELETE CASCADE,
+    -- FOREIGN KEY (playlist_id) REFERENCES playlists(pl_id) ON DELETE CASCADE,
+    -- FOREIGN KEY (track_uri) REFERENCES tracks(track_uri) ON DELETE CASCADE,
     PRIMARY KEY (playlist_id, track_uri)
 );
 
