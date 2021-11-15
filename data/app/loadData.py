@@ -4,6 +4,7 @@ import models as myModels
 from peewee import *
 from playhouse.db_url import connect
 import pandas as pd
+import time
 
 mPL = myModels.Playlists
 mT = myModels.Tracks
@@ -12,15 +13,20 @@ mPC = myModels.PlaylistContents
 class Storage:
     def __init__(self):
         self.db = connect(os.environ.get('DATABASE_URL'))
+        self.timeStamps = []
         self.db.close()
 
     def load_data_file(self, fileName):
         #$ The loaded data has two keys slice-info, and playlists
+        self.timeStamps.append({"before-load-File", time.time()})
         with open(fileName, 'r') as f:
             data = json.load(f)
+        self.timeStamps.append({"after-load-File", time.time()})
         return data
     
     def insertTracks(self, playlist, pl_id):
+        num_tracks = len(playlist['tracks'])
+        self.timeStamps.append({"begin-insert-pl-tracks" : time.time(), "pl_id" : pl_id, "num_tracks": num_tracks})
         #$ insert all the track data
         with self.db.atomic():
             for t_batch in chunked(playlist['tracks'], 100):
@@ -32,19 +38,22 @@ class Storage:
                     t.pop('pos', None)
                 mT.insert_many(t_batch).on_conflict_replace().execute()
         
+        self.timeStamps.append({"after-insert-pl-tracks" : time.time(), "pl_id" : pl_id, "num_tracks": num_tracks})
         #$ insert Playlist Content data 
         with self.db.atomic():
-            _pl_id = mPL.get(mPL.pl_id == pl_id)
+            _pl = mPL.get(mPL.pl_id == pl_id)
             for batch in chunked(playlist['tracks'], 100):
                 pContents = []
-                print("Inserting tracks for playlist {}".format(_pl_id.pl_name))
+                print("Inserting tracks for playlist {}".format(_pl.pl_name))
                 for t in batch:
-                    _tr_uri = mT.get(mT.track_uri == t['track_uri']) # get track id obj from track table
-                    pContents.append({'track_uri' : _tr_uri, 'playlist_id' : _pl_id})
+                    _tr = mT.get(mT.track_uri == t['track_uri']) # get track id obj from track table
+                    pContents.append({'track_uri' : _tr, 'playlist_id' : _pl})
 
                     mPC.insert_many(pContents).on_conflict_replace().execute()
                     print("Inserting 100 Tracks")
-        
+        self.timeStamps.append({"after-insert-pl-content" : time.time(), "pl_id" : pl_id, "num_tracks": num_tracks})
+        return
+
     def insertLibrary(self, fileName):
         sl = self.load_data_file(fileName)
         # TODO: Do Something with the slice information 
