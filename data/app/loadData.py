@@ -75,11 +75,13 @@ class Storage:
         s_info = sl['info']
         fields =[mPL.pl_name, mPL.pl_modified, mPL.pl_num_tracks, mPL.pl_num_albums, mPL.pl_followers, mPL.pl_edits, mPL.pl_duration, mPL.pl_num_artists, mPL.pl_id]
         print("Reading in slice {} ".format(s_info['slice']))
-        pl_count = 0
+        plStr = fileName.split('.')[2]
+        pl_count = int(plStr[:plStr.find('-')])
         clean_pl = self.cleanData(sl)
 
         with self.db.atomic():
-            for chunk in chunked(clean_pl, 100):
+            #TODO optimize chunk size for mysql / engine
+            for chunk in chunked(clean_pl, 250):
                 print('\nInserting Playlists {}-{}'.format(pl_count, pl_count + len(chunk)))
                 pl_count += len(chunk)
                 # $ insert the tracks for each playlist
@@ -89,26 +91,31 @@ class Storage:
                 # $ Insert 100 playlists into the playlist table 
                 mPL.insert_many(chunk, fields=fields).on_conflict_replace().execute()
     
+
+    # Write the stats to a file store within a log directory write to a new log every time
     def printStats(self):
-        print(self.timeStamps)
+        with open('logs/stats.txt', 'w+') as f:
+            for ts in self.timeStamps:
+                f.write(str(ts) + "\n")
+        return self.timeStamps
+
+def loadAllData():
+    s = Storage()
+    # for each json file in the data directory
+    bTime = time.time()
+    for f in os.listdir('/app/raw_data'):
+        if f.endswith('.json'):
+            s.insertLibrary('/app/raw_data/' + f)
+    eTime = time.time()
+    print("Time to load all data: {}".format(eTime - bTime))
 
 if __name__ == "__main__":
     storage = Storage()
-    some = storage.insertLibrary('/app/raw_data/mpd.slice.0-999.json')
+    storage.insertLibrary('/app/raw_data/mpd.slice.0-999.json')
     df = pd.DataFrame(storage.printStats())
-    # df = pd.DataFrame(some)
-    # print(df)
-    # slice = storage.load_data_file('/app/mpd.0-1.json')
-    # slice = slice['playlists']
-    # print(testDel(slice))
-    # print("idk")
-    
-    # tracks = slice['playlists'][0]
-    # print(tracks.keys())
-#     for t in tracks[1:]:
-#         if t['duration_ms'] == 227600:
-#             print("""
-# INSERT INTO tracks (t_artists, t_uri, t_artist_uri, t_name, t_album_uri, t_duration, t_album)
-#  VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}')""".format(t['artist_name'],t['track_uri'],t['artist_uri'],t['track_name'],t['album_uri'],t['duration_ms'],t['album_name']))
-        
-#     t = slice['playlists'][0]['tracks'][6]
+    print(df)
+
+# TODO: add foreign key constraint to the tables after inserting all data
+# TODO: Graph the data/time to see how long it takes to load the data
+# TODO: Finish the web API 
+# TODO: Pretty looking web interface? 
