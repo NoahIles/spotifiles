@@ -13,33 +13,30 @@ mPC = myModels.PlaylistContents
 class Storage:
     def __init__(self):
         self.db = connect(os.environ.get('DATABASE_URL'))
-        self.timeStamps = []
+        self.timeStamps = {}
         self.db.close()
 
     def load_data_file(self, fileName):
         #$ The loaded data has two keys slice-info, and playlists
-        self.timeStamps.append({"before-load-File", time.time()})
+        self.timeStamps["before-load-File"] =  time.time()
         with open(fileName, 'r') as f:
             data = json.load(f)
-        self.timeStamps.append({"after-load-File", time.time()})
+        self.timeStamps["after-load-File"] =  time.time()
         return data
     
     #$ insert all the track data
     def insertTracks(self, tracks, pl_id):
         num_tracks = len(tracks)
-        self.timeStamps.append({"begin-insert-pl-content" : time.time(), "pl_id" : pl_id, "num_tracks": num_tracks})        
+        self.timeStamps["begin-insert-pl-content"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
         #$ insert Playlist Content data 
         pContents = []
         for t in tracks:
             pContents.append({'track_uri': t['track_uri'], 'playlist_id': pl_id})
+        self.timeStamps["finish-clean-pContent"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
         mPC.insert_many(pContents).on_conflict_replace().execute()
-        self.timeStamps.append({"after-insert-pl-content" : time.time(), "pl_id" : pl_id, "num_tracks": num_tracks})
-
-        # for batch in chunked(tracks, 600):
-        # print("Inserting 600 Tracks")
+        self.timeStamps["after-insert-pl-content"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
         mT.insert_many(tracks).on_conflict_replace().execute()
-
-        self.timeStamps.append({"after-insert-pl-content" : time.time(), "pl_id" : pl_id, "num_tracks": num_tracks})
+        self.timeStamps["after-insert-pl-content"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
         return
 
     # Takes a data slice from mpd and cleans it up
@@ -95,27 +92,61 @@ class Storage:
     # Write the stats to a file store within a log directory write to a new log every time
     def printStats(self):
         with open('logs/stats.txt', 'w+') as f:
-            for ts in self.timeStamps:
-                f.write(str(ts) + "\n")
+            for t in self.timeStamps:
+                f.write(str(t) + '\n')
         return self.timeStamps
 
-def loadAllData():
-    s = Storage()
+    def loadAllData(self):
     # for each json file in the data directory
+        self.timestamps["begin-load-all-data"] = time.time()
+        for f in os.listdir('/app/raw_data'):
+            if f.endswith('.json'):
+                self.timeStamps["begin-load-file"] ={"timestamp": time.time(), "fileName" : f}
+                s.insertLibrary('/app/raw_data/' + f)
+                self.timeStamps["end-load-file"] ={"timestamp": time.time(), "fileName" : f}
+    
+    def loadOneFile(fileName = 'mpd.slice.0-999.json'):
+        self.insertLibrary('/app/raw_data/' + fileName)
+
+# ===============
+# Chunk Size = 500
+# Load_10,000 - 12.57 minutes
+# ===============
+
+
+def timeTest(funtion):
     bTime = time.time()
-    for f in os.listdir('/app/raw_data'):
-        if f.endswith('.json'):
-            s.insertLibrary('/app/raw_data/' + f)
+    funtion()
     eTime = time.time()
-    print("Time to load all data: {}".format(eTime - bTime))
+    print("Time to run function: {} Minutes".format(float(eTime - bTime) / 60))
 
 if __name__ == "__main__":
-    storage = Storage()
-    storage.insertLibrary('/app/raw_data/mpd.slice.0-999.json')
-    df = pd.DataFrame(storage.printStats())
-    print(df)
+    if s is None:
+        s = Storage()
+    basefileName = '/app/raw_data/mpd.slice.'
+    # ask the user if they would like to run tests on a single data set?
+    # if yes, run the test
+    fileName = None
+    if input("Would you like to run a test on a single data set? (y/n) ") == 'y':
+        testNum = int(input("Enter the test number 0-9: "))
+        if(testNum < 0 or testNum > 9):
+            print("Invalid test number")
+            exit()
+        elif(testNum == 0):
+            fileName = basefileName + '0-999.json'
+        else: 
+            fileName = basefileName + str(testNum) + '000-' + str(testNum) + '.json'
+    
+    
+        if fileName is not None:
+            timeTest(loadOneFile(fileName))
+
+    # ask the user if they would like to run tests on entire data set 
+    elif input("Would you like to run tests on the entire data set? (y/n) ") == 'y':
+        timeTest(loadAllData)
 
 # TODO: add foreign key constraint to the tables after inserting all data
 # TODO: Graph the data/time to see how long it takes to load the data
 # TODO: Finish the web API 
 # TODO: Pretty looking web interface? 
+# TODO: Make import data more efficient
