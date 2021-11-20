@@ -1,31 +1,7 @@
 -- RunOn Startup of container to import data on build
 use db1;
 
--- drop table if exists tweetData;
--- Create TABLE tweetData(
---     user VARCHAR(25) NOT NULL,
---     fullname VARCHAR(60) NOT NULL,
---     tweet_id INT(25) PRIMARY KEY,
---     timestampp VARCHAR(25) NOT NULL,
---     urll VARCHAR(100) NOT NULL,
---     likes INT(15) NOT NULL,
---     replies INT(15) NOT NULL,
---     retweets INT(15) NOT NULL,
---     content VARCHAR(200) NOT NULL,
---     html VARCHAR(200) NOT NULL
--- );
-
--- SET GLOBAL local_infile = true;
-
--- LOAD DATA LOCAL INFILE '/myData/realDonaldTrump.csv'
---     INTO TABLE tweetData
---     FIELDS TERMINATED BY ','
---     OPTIONALLY ENCLOSED BY '"'
---     LINES TERMINATED BY '\n'
---     IGNORE 1 LINES
---     (user, fullname, tweet_id, timestampp,urll, likes, replies, retweets, content, html);
-
--- Create Tables; 
+-- $Create Tables; 
 -- drop table if exists playlists;
 -- TODO: add  {pl_image VARCHAR(100), }
 Create TABLE IF NOT EXISTS playlists(
@@ -59,10 +35,15 @@ CREATE TABLE IF NOT EXISTS tracks(
 CREATE TABLE IF NOT EXISTS playlist_Contents(
     playlist_id INT NOT NULL,
     track_uri VARCHAR(50) NOT NULL,
-    -- FOREIGN KEY (playlist_id) REFERENCES playlists(pl_id) ON DELETE CASCADE,
-    -- FOREIGN KEY (track_uri) REFERENCES tracks(track_uri) ON DELETE CASCADE,
     PRIMARY KEY (playlist_id, track_uri)
 );
+    -- Foreign keys will be added later on
+    -- FOREIGN KEY (track_uri) REFERENCES tracks(track_uri) ON DELETE CASCADE,
+    -- FOREIGN KEY (playlist_id) REFERENCES playlists(pl_id) ON DELETE CASCADE,
+
+CREATE unique INDEX IF NOT EXISTS idx_playlist_Contents_playlist_id ON playlist_Contents(playlist_id, track_uri);
+CREATE unique INDEX IF NOT EXISTS idx_playlist on playlists(pl_id);
+CREATE unique INDEX IF NOT EXISTS idx_tracks on tracks(track_uri);
 
 SET GLOBAL local_infile = false;
 commit;

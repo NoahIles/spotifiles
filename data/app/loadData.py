@@ -16,12 +16,10 @@ class Storage:
         self.timeStamps = {}
         self.db.close()
 
+    #$ The loaded data has two keys slice-info, and playlists
     def load_data_file(self, fileName):
-        #$ The loaded data has two keys slice-info, and playlists
-        self.timeStamps["before-load-File"] =  time.time()
         with open(fileName, 'r') as f:
             data = json.load(f)
-        self.timeStamps["after-load-File"] =  time.time()
         return data
     
     #$ insert all the track data
@@ -33,9 +31,9 @@ class Storage:
         for t in tracks:
             pContents.append({'track_uri': t['track_uri'], 'playlist_id': pl_id})
         self.timeStamps["finish-clean-pContent"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
-        mPC.insert_many(pContents).on_conflict_replace().execute()
+        mPC.insert_many(pContents).on_conflict_replace().execute() # On Conflict replace should be later replaced with upsert
         self.timeStamps["after-insert-pl-content"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
-        mT.insert_many(tracks).on_conflict_replace().execute()
+        mT.insert_many(tracks).on_conflict_replace().execute() # On Conflict replace should be later replaced with upsert
         self.timeStamps["after-insert-pl-content"] = { "timestamp": time.time(), "pl_id" : pl_id, "num_tracks": num_tracks}        
         return
 
@@ -65,20 +63,24 @@ class Storage:
             clean_pl.append(cur)
         return clean_pl
 
+    def handleSliceInfo(self, sliceInfo):
+        print("Reading in slice {} ".format(s_info['slice']))
+        # TODO: Do Something with the slice information 
+        return
 
     def insertLibrary(self, fileName):
+        self.timeStamps["before-load-File"] =  time.time()
         sl = self.load_data_file(fileName)
-        # TODO: Do Something with the slice information 
-        s_info = sl['info']
-        fields =[mPL.pl_name, mPL.pl_modified, mPL.pl_num_tracks, mPL.pl_num_albums, mPL.pl_followers, mPL.pl_edits, mPL.pl_duration, mPL.pl_num_artists, mPL.pl_id]
-        print("Reading in slice {} ".format(s_info['slice']))
-        plStr = fileName.split('.')[2]
-        pl_count = int(plStr[:plStr.find('-')])
-        clean_pl = self.cleanData(sl)
+        self.timeStamps["after-load-File"] =  time.time()
+        self.handleSliceInfo(sl['info'])
 
+        clean_pl = self.cleanData(sl)
+        pL_count = int((fileName.split('.')[2]).split('-')[0])
+
+        fields =[mPL.pl_name, mPL.pl_modified, mPL.pl_num_tracks, mPL.pl_num_albums, mPL.pl_followers, mPL.pl_edits, mPL.pl_duration, mPL.pl_num_artists, mPL.pl_id]
         with self.db.atomic():
             #TODO optimize chunk size for mysql / engine
-            for chunk in chunked(clean_pl, 250):
+            for chunk in chunked(clean_pl, 150):
                 print('\nInserting Playlists {}-{}'.format(pl_count, pl_count + len(chunk)))
                 pl_count += len(chunk)
                 # $ insert the tracks for each playlist
@@ -107,6 +109,15 @@ class Storage:
     
     def loadOneFile(fileName = 'mpd.slice.0-999.json'):
         self.insertLibrary('/app/raw_data/' + fileName)
+        return this
+
+    def fetchCounts(self):
+        with self.db.atomic():
+            return {
+                "Playlist content" : mPC.select().count(),
+                "Tracks" : mT.select().count(),
+                "Playlists" : mPL.select().count()
+            }
 
 # ===============
 # Chunk Size = 500
@@ -121,8 +132,8 @@ def timeTest(funtion):
     print("Time to run function: {} Minutes".format(float(eTime - bTime) / 60))
 
 if __name__ == "__main__":
-    if s is None:
-        s = Storage()
+    s = Storage()
+    status_before = s.fetchCounts()
     basefileName = '/app/raw_data/mpd.slice.'
     # ask the user if they would like to run tests on a single data set?
     # if yes, run the test
@@ -130,7 +141,7 @@ if __name__ == "__main__":
     if input("Would you like to run a test on a single data set? (y/n) ") == 'y':
         testNum = int(input("Enter the test number 0-9: "))
         if(testNum < 0 or testNum > 9):
-            print("Invalid test number")
+            print("Invalid test number Exiting...")
             exit()
         elif(testNum == 0):
             fileName = basefileName + '0-999.json'
@@ -139,14 +150,25 @@ if __name__ == "__main__":
     
     
         if fileName is not None:
-            timeTest(loadOneFile(fileName))
+            func = loadOneFile
+            timeTest(*s.loadOneFile(fileName))
 
     # ask the user if they would like to run tests on entire data set 
     elif input("Would you like to run tests on the entire data set? (y/n) ") == 'y':
         timeTest(loadAllData)
 
+    status_after = s.fetchCounts()
+
+    print(status_before + '\n')
+    print(status_after)
+
 # TODO: add foreign key constraint to the tables after inserting all data
 # TODO: Graph the data/time to see how long it takes to load the data
+# TODO: Move credentials to a .env file // increase database security  
 # TODO: Finish the web API 
 # TODO: Pretty looking web interface? 
 # TODO: Make import data more efficient
+
+
+# Create an index for every key (primary, foreign)
+# in the playlist content table 
