@@ -2,12 +2,12 @@ import os
 import json
 import time
 import logging
-from logging.handlers import RotatingFileHandler
 import models as myModels
 from peewee import *
 from playhouse.db_url import connect
 import pandas as pd
 
+import my_logger
 import my_timer
 
 mPL = myModels.Playlists
@@ -17,31 +17,45 @@ mPC = myModels.PlaylistContents
 class Storage:
     def __init__(self):
         self.db = connect(os.environ.get('DATABASE_URL'))
-        self.timeStamps = {}
-        self.logger = logging.getLogger('myLogger')
-        self.initLogger()
+        self.timeStamps = []
+        self.eventlogger = logging.getLogger('eventLogger')
+        my_logger.initLogger(self.eventlogger)
         self.db.close()
-
-    def initLogger(self):
-        self.logger.setLevel(logging.DEBUG)
-        # create a file handler
-        handler = RotatingFileHandler('logs/mylog.log', maxBytes=10000, backupCount=5)
-        handler.setLevel(logging.DEBUG)
-        # create a logging format
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.handler.setFormatter(formatter)
-        # add the handlers to the logger
-        self.logger.addHandler(handler)
-        return self
 
     def __del__(self):
         self.db.close()
-        self.writeLogs()
+        # self.writeLogs() # ! can't write the logs here because open already got garbage collected
     
     # write the timestamps to the logger file
     def writeLogs(self):
-        self.logger.info("HELLO?")
-        # self.logger.info(self.timeStamps)
+        if len(self.timeStamps) == 0:
+            print("Timestamps empty")
+            return
+        self.eventlogger.info("Logging Timestamps")
+        TA_logger = my_logger.initTimeAnalysis_logger()
+        # pKey, pTime = self.timeStamps[0].keys()[0], self.timeStamps[0].values()[0]
+        # , self.timeStamps[0].values()
+        pKey = None
+        for ts in self.timeStamps:
+            if type(*ts.values()) == float: 
+                try:
+                    if pKey is None:
+                        pKey, pVal = next(iter(ts.keys())), float(next(iter(ts.values()))) 
+                        continue
+                    else:
+                        cKey, cVal = next(iter(ts.keys())), float(next(iter(ts.values())))
+                        TA_logger.info("From {lastEvent} to {curEvent} took {:f} seconds".format(
+                            cVal - pVal, lastEvent=pKey, curEvent=cKey))
+                        pKey, pVal = cKey, cVal
+                except Exception as e:
+                    print("Error: {}\n With: {}".format(e,next(iter(ts.values()))))
+                    # for i in ts.values
+                    # print(ts.values()[0])
+                    continue
+            else:
+                print("greater than 1 key")
+                # for pKey, pTime in ts.items():
+                    # TA_logger.info("{} {} {}".format(pKey, pTime['timestamp'], pTime['pl_id']))
         return
 
     # $ The loaded data has two keys slice-info, and playlists
@@ -58,21 +72,21 @@ class Storage:
     # $ insert all the track data
     def insertTracks(self, tracks, pl_id):
         num_tracks = len(tracks)
-        self.timeStamps["begin-insert-pl-content"] = {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}
+        self.timeStamps.append({ "begin-insert-pl-content" : {
+            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
         # $ insert Playlist Content data
         pContents = []
         for t in tracks:
             pContents.append(
                 {'track_uri': t['track_uri'], 'playlist_id': pl_id})
-        self.timeStamps["finish-clean-pContent"] = {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}
+        self.timeStamps.append({"finish-clean-pContent" : {
+            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
         mPC.insert_many(pContents).on_conflict_ignore().execute()
-        self.timeStamps["after-insert-pl-content"] = {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}
+        self.timeStamps.append({"after-insert-pl-content" : {
+            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
         mT.insert_many(tracks).on_conflict_ignore().execute()
-        self.timeStamps["after-insert-pl-content"] = {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}
+        self.timeStamps.append({"after-insert-tracks" : {
+            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
         return
 
     # Takes a data slice from mpd and cleans it up
@@ -107,9 +121,9 @@ class Storage:
         return
 
     def insertLibrary(self, fileName, chunkSize=250, verbose=False):
-        self.timeStamps["before-load-File"] = time.time()
+        self.timeStamps.append({"before-load-File" : time.time()})
         sl = self.load_data_file(fileName)
-        self.timeStamps["after-load-File"] = time.time()
+        self.timeStamps.append({"after-load-File" : time.time()})
         try:
             self.handleSliceInfo(sl['info'])
         except:
@@ -143,23 +157,17 @@ class Storage:
 
     # Write the stats to a file store within a log directory write to a new log every time
 
-    def printStats(self):
-        with open('logs/stats.txt', 'w+') as f:
-            for t in self.timeStamps:
-                f.write(str(t) + '\n')
-        return self.timeStamps
-
     @my_timer.timeit
     def loadAllData(self):
         # for each json file in the data directory
-        self.timestamps["begin-load-all-data"] = time.time()
+        self.timeStamps.append({"begin-load-all-data" : time.time()})
         for f in os.listdir('/app/raw_data'):
             if f.endswith('.json'):
-                self.timeStamps["begin-load-file"] = {
-                    "timestamp": time.time(), "fileName": f}
+                self.timeStamps.append({"begin-load-file" : {
+                    "timestamp": time.time(), "fileName": f}})
                 s.insertLibrary('/app/raw_data/' + f)
-                self.timeStamps["end-load-file"] = {
-                    "timestamp": time.time(), "fileName": f}
+                self.timeStamps.append({"end-load-file" :{
+                    "timestamp": time.time(), "fileName": f}})
 
     @my_timer.timeit
     def loadOneFile(self, fileName):
@@ -181,7 +189,7 @@ class Storage:
 if __name__ == "__main__":
     try: 
         s = Storage()
-        s.logger.info("Storage Initialized")
+        s.eventlogger.info("Storage Initialized")
     except Exception as e:
         print(e)
         print("Storage Failed to initialize")
@@ -212,6 +220,7 @@ if __name__ == "__main__":
 
     print(status_before)
     print(status_after)
+    s.writeLogs()
 
 # TODO: add foreign key constraint to the tables after inserting all data
 # TODO: Graph the data/time to see how long it takes to load the data
@@ -219,6 +228,7 @@ if __name__ == "__main__":
 # TODO: Finish the web API
 # TODO: Pretty looking web interface?
 # TODO: Make import data more efficient
+# TODO: Remove Extra requirements from the requirements.txt file
 
 
 # Create an index for every key (primary, foreign)
