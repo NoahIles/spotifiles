@@ -4,7 +4,7 @@
 from functools import wraps
 from time import time
 
-
+# This is a decorator that will time the function it expects at least one argument which could be (self)
 def timeit(f):
     @wraps(f)
     def wrap(*args, **kw):
@@ -13,12 +13,12 @@ def timeit(f):
         te = time()
         time_elapsed = te - ts
         if time_elapsed < 60:
-            oString = "{} seconds".format(time_elapsed)
+            oString = "{:f} seconds".format(time_elapsed)
         elif time_elapsed < 3600:
-            oString = "{} minutes".format(time_elapsed/60)
+            oString = "{:f} minutes".format(time_elapsed/60)
         else:
-            oString = "{} hours".format(time_elapsed/3600)
+            oString = "{:f} hours".format(time_elapsed/3600)
         print('func:%r args:[%r, %r] took: %r' %
-              (f.__name__, args, kw, oString))
+              (f.__name__, args[1:], kw, oString))
         return result
     return wrap
