@@ -2,28 +2,37 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-def initLogger(logger, logName='logs/mylog.log', _formater = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
-    logger.setLevel(logging.DEBUG)
-    # create a file handler
-    handler = RotatingFileHandler(logName, maxBytes=10000, backupCount=10)
-    handler.setLevel(logging.DEBUG)
-    # create a logging format
-    if _formater:
-        print("Using formater")
-        formatter = logging.Formatter(_formater)
-        handler.setFormatter(formatter)
-    # add the handlers to the logger
-    logger.addHandler(handler)
-    return logger
+
+# I don't need global loggers because if you getLogger of the same name it will return the same logger
+class my_logger():
+    def __new__(self, name:str, _fileName:str = 'logs/mylog.log', _formater = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        if len(_fileName) > 0:
+            handler = RotatingFileHandler(_fileName, maxBytes=10000, backupCount=10)
+            handler.setLevel(logging.DEBUG)
+        else:
+            # Should be a handler to the console 
+            pass
+        if _formater:
+            formatter = logging.Formatter(_formater)
+            handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        return self.logger
+
+
+# Inits the Event Logger and returns it
+def initEvent_Logger():
+    eventLog = my_logger('eventLogger')
+    return eventLog
+
 
 def initTimeAnalysis_logger():
-    # while filename exists 
     num = 0
-    logName = "logs/timeTrials/{}.json".format(num)
+    logFileName = f"logs/timeTrials/{num}.json"
     # if a log file exists and its not empty then create a new one
-    while os.path.isfile(logName) and os.stat(logName).st_size != 0:
+    while os.path.isfile(logFileName) and os.stat(logFileName).st_size != 0:
         num += 1
-        logName = "logs/timeTrials/{}.json".format(num)
-    timeLog = logging.getLogger('timeLogger')
-    initLogger(timeLog, logName=logName, _formater=None)
+        logFileName = f"logs/timeTrials/{num}.json"
+    timeLog = my_logger(name='timeLogger', _fileName=logFileName, _formater=None)
     return timeLog

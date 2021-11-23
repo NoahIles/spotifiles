@@ -2,15 +2,15 @@
 # https://stackoverflow.com/questions/1622943/timeit-versus-timing-decorator
 # https://stackoverflow.com/questions/1148309/how-to-calculate-time-elapsed-in-python
 from functools import wraps
-from time import time
+from time import perf_counter
 
 # This is a decorator that will time the function it expects at least one argument which could be (self)
 def timeit(f):
     @wraps(f)
     def wrap(*args, **kw):
-        ts = time()
+        ts = perf_counter()
         result = f(*args, **kw)
-        te = time()
+        te = perf_counter()
         time_elapsed = te - ts
         if time_elapsed < 60:
             oString = "{:f} seconds".format(time_elapsed)

@@ -1,13 +1,12 @@
 import os
 import json
-import time
-import logging
-import models as myModels
+from time import perf_counter
 from peewee import *
 from playhouse.db_url import connect
 import pandas as pd
 
-import my_logger
+import models as myModels
+from my_logger import *
 import my_timer
 
 mPL = myModels.Playlists
@@ -18,26 +17,24 @@ class Storage:
     def __init__(self):
         self.db = connect(os.environ.get('DATABASE_URL'))
         self.timeStamps = []
-        self.eventlogger = logging.getLogger('eventLogger')
-        my_logger.initLogger(self.eventlogger)
+        self.eLog = initEvent_Logger()
         self.db.close()
+        self.sliceInfo = None
 
     def __del__(self):
         self.db.close()
-        # self.writeLogs() # ! can't write the logs here because open already got garbage collected
     
     # write the timestamps to the logger file
     def writeLogs(self):
         if len(self.timeStamps) == 0:
             print("Timestamps empty")
             return
-        self.eventlogger.info("Logging Timestamps")
-        TA_logger = my_logger.initTimeAnalysis_logger()
-        # pKey, pTime = self.timeStamps[0].keys()[0], self.timeStamps[0].values()[0]
-        # , self.timeStamps[0].values()
+        self.eLog.info("Logging Timestamps") 
+        TA_logger = initTimeAnalysis_logger()
+        #TODO: LOG the slice info here 
         pKey = None
         for ts in self.timeStamps:
-            if type(*ts.values()) == float: 
+            if isinstance(*ts.values(), float):
                 try:
                     if pKey is None:
                         pKey, pVal = next(iter(ts.keys())), float(next(iter(ts.values()))) 
@@ -49,13 +46,13 @@ class Storage:
                         pKey, pVal = cKey, cVal
                 except Exception as e:
                     print("Error: {}\n With: {}".format(e,next(iter(ts.values()))))
-                    # for i in ts.values
-                    # print(ts.values()[0])
                     continue
             else:
-                print("greater than 1 key")
-                # for pKey, pTime in ts.items():
-                    # TA_logger.info("{} {} {}".format(pKey, pTime['timestamp'], pTime['pl_id']))
+                pass
+                # for k, v in ts.items():
+                #     for k2, v2 in v.items():
+                #         TA_logger.info("{} : {}".format(k,v2))
+                #     TA_logger.info("{}: {}".format(k, v))
         return
 
     # $ The loaded data has two keys slice-info, and playlists
@@ -73,20 +70,20 @@ class Storage:
     def insertTracks(self, tracks, pl_id):
         num_tracks = len(tracks)
         self.timeStamps.append({ "begin-insert-pl-content" : {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
+            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         # $ insert Playlist Content data
         pContents = []
         for t in tracks:
             pContents.append(
                 {'track_uri': t['track_uri'], 'playlist_id': pl_id})
         self.timeStamps.append({"finish-clean-pContent" : {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
+            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         mPC.insert_many(pContents).on_conflict_ignore().execute()
         self.timeStamps.append({"after-insert-pl-content" : {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
+            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         mT.insert_many(tracks).on_conflict_ignore().execute()
         self.timeStamps.append({"after-insert-tracks" : {
-            "timestamp": time.time(), "pl_id": pl_id, "num_tracks": num_tracks}})
+            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         return
 
     # Takes a data slice from mpd and cleans it up
@@ -117,21 +114,22 @@ class Storage:
 
     def handleSliceInfo(self, sliceInfo):
         print("Reading in slice {} ".format(sliceInfo['slice']))
+        self.sliceInfo = sliceInfo['slice']
         # TODO: Do Something with the slice information
         return
 
     def insertLibrary(self, fileName, chunkSize=250, verbose=False):
-        self.timeStamps.append({"before-load-File" : time.time()})
+        self.timeStamps.append({"before-load-File" : perf_counter()})
         sl = self.load_data_file(fileName)
-        self.timeStamps.append({"after-load-File" : time.time()})
+        self.timeStamps.append({"after-load-File" : perf_counter()})
         try:
             self.handleSliceInfo(sl['info'])
         except:
             print("CAUGHT EXCEPTION!!!!: ")
             print("No slice info")
             print("Available Keys")
-            for k in sl.keys():
-                print(k)
+            for key in sl:
+                print(key)
             exit(1)
 
         clean_pl = self.cleanData(sl)
@@ -160,14 +158,14 @@ class Storage:
     @my_timer.timeit
     def loadAllData(self):
         # for each json file in the data directory
-        self.timeStamps.append({"begin-load-all-data" : time.time()})
+        self.timeStamps.append({"begin-load-all-data" : perf_counter()})
         for f in os.listdir('/app/raw_data'):
             if f.endswith('.json'):
                 self.timeStamps.append({"begin-load-file" : {
-                    "timestamp": time.time(), "fileName": f}})
+                    "timestamp": perf_counter(), "fileName": f}})
                 s.insertLibrary('/app/raw_data/' + f)
                 self.timeStamps.append({"end-load-file" :{
-                    "timestamp": time.time(), "fileName": f}})
+                    "timestamp": perf_counter(), "fileName": f}})
 
     @my_timer.timeit
     def loadOneFile(self, fileName):
@@ -189,7 +187,7 @@ class Storage:
 if __name__ == "__main__":
     try: 
         s = Storage()
-        s.eventlogger.info("Storage Initialized")
+        s.eLog.info("Storage Initialized")
     except Exception as e:
         print(e)
         print("Storage Failed to initialize")
@@ -207,8 +205,7 @@ if __name__ == "__main__":
         elif(testNum == 0):
             fileName = basefileName + '0-999.json'
         else:
-            fileName = str(basefileName + str(testNum) +
-                           '000-' + str(testNum) + '.json')
+            fileName = f"{basefileName}{testNum}000-{testNum}.json"
 
         if fileName is not None:
             s.loadOneFile(fileName)
