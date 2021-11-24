@@ -163,7 +163,7 @@ class Storage:
             if f.endswith('.json'):
                 self.timeStamps.append({"begin-load-file" : {
                     "timestamp": perf_counter(), "fileName": f}})
-                s.insertLibrary('/app/raw_data/' + f)
+                s.loadOneFile(f)
                 self.timeStamps.append({"end-load-file" :{
                     "timestamp": perf_counter(), "fileName": f}})
 
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         elif(testNum == 0):
             fileName = basefileName + '0-999.json'
         else:
-            fileName = f"{basefileName}{testNum}000-{testNum}.json"
+            fileName = f"{basefileName}{testNum}000-{testNum}999.json"
 
         if fileName is not None:
             s.loadOneFile(fileName)
