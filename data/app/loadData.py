@@ -5,6 +5,7 @@ from peewee import *
 from playhouse.db_url import connect
 import pandas as pd
 
+from connectDB import pooledConnectDB
 import models as myModels
 from my_logger import *
 import my_timer
@@ -15,7 +16,7 @@ mPC = myModels.PlaylistContents
 
 class Storage:
     def __init__(self):
-        self.db = connect(os.environ.get('DATABASE_URL'))
+        self.db = connect(os.environ.get('DATABASE_URL'), reuse_if_open=True)
         self.timeStamps = []
         self.eLog = initEvent_Logger()
         self.db.close()
@@ -67,23 +68,16 @@ class Storage:
         return data
 
     # $ insert all the track data
+    @my_timer.timeit
     def insertTracks(self, tracks, pl_id):
         num_tracks = len(tracks)
-        self.timeStamps.append({ "begin-insert-pl-content" : {
-            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         # $ insert Playlist Content data
         pContents = []
         for t in tracks:
             pContents.append(
                 {'track_uri': t['track_uri'], 'playlist_id': pl_id})
-        self.timeStamps.append({"finish-clean-pContent" : {
-            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         mPC.insert_many(pContents).on_conflict_ignore().execute()
-        self.timeStamps.append({"after-insert-pl-content" : {
-            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         mT.insert_many(tracks).on_conflict_ignore().execute()
-        self.timeStamps.append({"after-insert-tracks" : {
-            "timestamp": perf_counter(), "pl_id": pl_id, "num_tracks": num_tracks}})
         return
 
     # Takes a data slice from mpd and cleans it up
@@ -119,9 +113,7 @@ class Storage:
         return
 
     def insertLibrary(self, fileName, chunkSize=250, verbose=False):
-        self.timeStamps.append({"before-load-File" : perf_counter()})
         sl = self.load_data_file(fileName)
-        self.timeStamps.append({"after-load-File" : perf_counter()})
         try:
             self.handleSliceInfo(sl['info'])
         except:
@@ -184,7 +176,7 @@ class Storage:
 # Load_10,000 - 12.57 minutes
 # ===============
 
-if __name__ == "__main__":
+def main():
     try: 
         s = Storage()
         s.eLog.info("Storage Initialized")
@@ -219,9 +211,12 @@ if __name__ == "__main__":
     print(status_after)
     s.writeLogs()
 
+if __name__ == "__main__":
+    main()
+
 # TODO: add foreign key constraint to the tables after inserting all data
 # TODO: Graph the data/time to see how long it takes to load the data
-# TODO: Move credentials to a .env file // increase database security
+# TODO: increase database security
 # TODO: Finish the web API
 # TODO: Pretty looking web interface?
 # TODO: Make import data more efficient
