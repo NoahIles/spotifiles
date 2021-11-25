@@ -18,6 +18,9 @@ services:
     depends_on:
       - db
     container_name: l8-api
+    environment:
+      - DATABASE_URL
+      - TZ
 
   # Mysql Database 
   db: 
@@ -35,6 +38,12 @@ services:
     container_name: l8-db
     expose:
       - "3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - TZ
 
   # Nice Looking webserver uses fastAPI to get the data. 
   nginx:
@@ -51,6 +60,8 @@ services:
     container_name: l8-nginx
     depends_on:
       - db
+    environment:
+      - TZ
   
   #PHP-MYADMIN:
   adminer:
@@ -63,3 +74,5 @@ services:
     depends_on:
       - db
     container_name: l8-adminer
+    environment:
+      - TZ
