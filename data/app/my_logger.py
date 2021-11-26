@@ -27,10 +27,11 @@ def initEvent_Logger():
     return eventLog
 
 
-def initTimeAnalysis_logger():
+def initTimeAnalysis_logger(folderName:str = 'timeTrials'):
     num = 0
-    logFileName = f"logs/timeTrials/{num}.json"
+    logFileName = f"logs/{folderName}/{num}.json"
     # if a log file exists and its not empty then create a new one
+    # I think I could use enumerate here but I'm not sure
     while os.path.isfile(logFileName) and os.stat(logFileName).st_size != 0:
         num += 1
         logFileName = f"logs/timeTrials/{num}.json"

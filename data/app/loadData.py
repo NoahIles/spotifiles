@@ -25,37 +25,6 @@ class Storage:
 
     def __del__(self):
         self.db.close()
-    
-    #$ write the timestamps to the logger file
-    def writeLogs(self):
-        if len(self.timeStamps) == 0:
-            print("Timestamps empty")
-            return
-        self.eLog.info("Logging Timestamps") 
-        TA_logger = initTimeAnalysis_logger()
-        #TODO: LOG the slice info here 
-        pKey = None
-        for ts in self.timeStamps:
-            if isinstance(*ts.values(), float):
-                try:
-                    if pKey is None:
-                        pKey, pVal = next(iter(ts.keys())), float(next(iter(ts.values()))) 
-                        continue
-                    else:
-                        cKey, cVal = next(iter(ts.keys())), float(next(iter(ts.values())))
-                        TA_logger.info("From {lastEvent} to {curEvent} took {:f} seconds".format(
-                            cVal - pVal, lastEvent=pKey, curEvent=cKey))
-                        pKey, pVal = cKey, cVal
-                except Exception as e:
-                    print("Error: {}\n With: {}".format(e,next(iter(ts.values()))))
-                    continue
-            else:
-                pass
-                # for k, v in ts.items():
-                #     for k2, v2 in v.items():
-                #         TA_logger.info("{} : {}".format(k,v2))
-                #     TA_logger.info("{}: {}".format(k, v))
-        return
 
     # $ The loaded data has two keys slice-info, and playlists
     def load_data_file(self, fileName):
@@ -70,47 +39,41 @@ class Storage:
 
     # $ insert all the track data
     # @my_timer.timeit
-    def insertTracks(self, tracks, pl_id):
+    def insertTracks(self, tracks, pid):
         num_tracks = len(tracks)
         # $ insert Playlist Content data
         pContents = []
         for t in tracks:
             pContents.append(
-                {'track_uri': t['track_uri'], 'playlist_id': pl_id})
+                {'track_uri': t['track_uri'], 'playlist_id': pid})
         mPC.insert_many(pContents).on_conflict_ignore().execute()
         mT.insert_many(tracks).on_conflict_ignore().execute()
         return
 
     #$ Takes a data slice from mpd and cleans it up
     def cleanData(self, data):
-        clean_pl = []
-        for pl in data['playlists']:
-            # there is probably a better way to do this.
-            cur = {}
-            cur['pl_name'] = pl.pop('name', None).replace("'", "\\'")
-            cur['pl_modified'] = pl.pop('modified_at', None)
-            cur['pl_num_tracks'] = pl.pop('num_tracks', None)
-            cur['pl_num_albums'] = pl.pop('num_albums', None)
-            cur['pl_followers'] = pl.pop('num_followers', None)
-            cur['pl_edits'] = pl.pop('edits', None)
-            cur['pl_duration'] = pl.pop('duration_ms', None)
-            cur['pl_num_artists'] = pl.pop('num_artists', None)
-            cur['pl_id'] = pl['pid']
+        cleaned = data['playlists']
+        for pl in cleaned:
+            pl.pop('collaborative', None)
+            pl.pop('edits', None)
+            # TODO: check the difference between edits and num_edits
+            pl['_name'] = pl.pop('name', None).replace("'", "\\'")
             # $ Clean the Track data
             for t in pl['tracks']:
                 t['artist_name'] = t['artist_name'].replace("'", "\\'")
                 t['track_name'] = t['track_name'].replace("'", "\\'")
                 t['album_name'] = t['album_name'].replace("'", "\\'")
                 t.pop('pos', None)
-
-            cur['tracks'] = pl.pop('tracks', None)
-            clean_pl.append(cur)
-        return clean_pl
+        return cleaned
 
     def handleSliceInfo(self, sliceInfo):
         print("Reading in slice {} ".format(sliceInfo['slice']))
         self.sliceInfo = sliceInfo['slice']
-        # TODO: Do Something with the slice information
+        # print("Slice info: {}".format(self.sliceInfo))
+        self.eLog.info("Slice info: {}".format(self.sliceInfo))
+        # if the edges of the slice already exist, then we are done
+
+        # TODO: Do Something with the slice information smartly import it 
         return
 
     def insertLibrary(self, fileName, chunkSize, verbose=False):
@@ -118,18 +81,13 @@ class Storage:
         try:
             self.handleSliceInfo(sl['info'])
         except:
-            print("CAUGHT EXCEPTION!!!!: ")
-            print("No slice info")
-            print("Available Keys")
+            print("CAUGHT EXCEPTION!!!!:\nNo slice info\nAvailable Keys")
             for key in sl:
                 print(key)
             exit(1)
 
         clean_pl = self.cleanData(sl)
         pl_count = int((fileName.split('.')[2]).split('-')[0])
-
-        fields = [mPL.pl_name, mPL.pl_modified, mPL.pl_num_tracks, mPL.pl_num_albums,
-                  mPL.pl_followers, mPL.pl_edits, mPL.pl_duration, mPL.pl_num_artists, mPL.pl_id]
         with self.db.atomic():
             # TODO optimize chunk size for mysql / engine
             for chunk in chunked(clean_pl, chunkSize):
@@ -141,24 +99,24 @@ class Storage:
                     if verbose:
                         print("Inserting tracks for playlist {}".format(
                         pl['pl_name']))
-                    self.insertTracks(pl.pop('tracks', None), pl['pl_id'])
-                # $ Insert 100 playlists into the playlist table
-                mPL.insert_many(
-                    chunk, fields=fields).on_conflict_ignore().execute()
+                    tb = perf_counter()
+                    self.insertTracks(pl.pop('tracks', None), pl['pid'])
+                    te = perf_counter()
+                    t = te - tb
+                    _t = f"{t / 60} minutes" if (t > 60) else f"{t} seconds"  
+                    # self.eLog.info(f"Inserted tracks for playlist {pl['pid']}:{pl['_name']} in {_t}")
+                # $ Insert chunkSize playlists into the playlist table
+                mPL.insert_many(chunk).on_conflict_ignore().execute()
 
     # Write the stats to a file store within a log directory write to a new log every time
 
     @my_timer.timeit
     def loadAllData(self):
-        # for each json file in the data directory
-        self.timeStamps.append({"begin-load-all-data" : perf_counter()})
+        #* for each json file in the data directory
         for f in os.listdir('/app/raw_data'):
             if f.endswith('.json'):
-                self.timeStamps.append({"begin-load-file" : {
-                    "timestamp": perf_counter(), "fileName": f}})
                 self.loadOneFile(f)
-                self.timeStamps.append({"end-load-file" :{
-                    "timestamp": perf_counter(), "fileName": f}})
+
 
     @my_timer.timeit
     def loadOneFile(self, fileName, chunkSize=250):
@@ -173,20 +131,14 @@ class Storage:
                 "Playlists": mPL.select().count()
             }
     def resetDB(self):
-        self.eLog.info("Resetting Database")
         self.db.drop_tables([mPL, mT, mPC])
         self.db.create_tables([mPL, mT, mPC])
-        self.eLog.info("Database Reset")
-
-# ===============
-# Chunk Size = 500
-# Load_10,000 - 12.57 minutes
-# ===============
+        self.eLog.info("Database Reset")            
 
 def main():
     try: 
         s = Storage()
-        s.eLog.info("Storage Initialized")
+        # s.eLog.info("Storage Initialized")
     except Exception as e:
         print(e)
         print("Storage Failed to initialize")
@@ -216,30 +168,27 @@ def main():
 
     print(status_before)
     print(status_after)
-    s.writeLogs()
 
-# write a function that will take a file name and load it into the database
-# 
-def findBestChunkSize():
+def findBestChunkSize(increment=25, initial=25, max=300, iterations=3):
     s = Storage()
     tL = initTimeAnalysis_logger()
     s.resetDB()
     fName = "mpd.slice.0-999.json"
-    chunkSize=25
-    while chunkSize < 300:
+    chunkSize=initial
+    while chunkSize < max:
         sum = 0
-        for i in range(0, 3):
-            t = s.loadOneFile(fName, chunkSize)
-            sum += t
+        for i in range(0, iterations):
+            curTime = s.loadOneFile(fName, chunkSize)
+            sum += curTime
             s.resetDB()
         tL.info(f"Chunk Size: {chunkSize} Time: {sum/3}")
-        chunkSize+=25
+        chunkSize+=increment
 
 
 
 if __name__ == "__main__":
-    findBestChunkSize()
-    # main()
+    # findBestChunkSize()
+    main()
 
 
 
