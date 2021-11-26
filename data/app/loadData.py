@@ -105,23 +105,36 @@ class Storage:
                     t = te - tb
                     _t = f"{t / 60} minutes" if (t > 60) else f"{t} seconds"  
                     # self.eLog.info(f"Inserted tracks for playlist {pl['pid']}:{pl['_name']} in {_t}")
+                Fields = pl.keys()
+
                 # $ Insert chunkSize playlists into the playlist table
-                mPL.insert_many(chunk).on_conflict_ignore().execute()
+                mPL.insert_many(chunk, Fields).on_conflict_ignore().execute()
 
     # Write the stats to a file store within a log directory write to a new log every time
 
     @my_timer.timeit
     def loadAllData(self):
+        self.remForeignKeys()
         #* for each json file in the data directory
         for f in os.listdir('/app/raw_data'):
             if f.endswith('.json'):
                 self.loadOneFile(f)
+        self.addForeignKeys()
 
 
     @my_timer.timeit
     def loadOneFile(self, fileName, chunkSize=250):
+        self.remForeignKeys()
         self.insertLibrary('/app/raw_data/' + fileName, chunkSize)
+        self.addForeignKeys()
 
+    def addForeignKeys(self):
+        mPC.playlist_id.foreign_key = mPL.pid
+        mPC.track_uri.foreign_key = mT.track_uri
+
+    def remForeignKeys(self):
+        mPC.playlist_id.foreign_key = None
+        mPC.track_uri.foreign_key = None
 
     def fetchCounts(self):
         with self.db.atomic():
@@ -138,11 +151,9 @@ class Storage:
 def main():
     try: 
         s = Storage()
-        # s.eLog.info("Storage Initialized")
     except Exception as e:
         print(e)
         print("Storage Failed to initialize")
-        # s.logger.error("Storage Failed to initialize")
         exit(1)
     status_before = s.fetchCounts()
     print("Before: {}".format(status_before))
@@ -193,9 +204,6 @@ if __name__ == "__main__":
 
 
 
-# TODO: add foreign key constraint to the tables after inserting all data
-# TODO: Graph the data/time to see how long it takes to load the data
-# TODO: increase database security
 # TODO: Finish the web API
 # TODO: Pretty looking web interface?
 # TODO: Make import data more efficient
