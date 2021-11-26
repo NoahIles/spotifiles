@@ -5,8 +5,9 @@
 # Peewee version: 3.14.8
 
 from peewee import *
+from connectDB import initPooledDB
 
-database = MySQLDatabase('db1', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True, 'host': 'db', 'user': 'root', 'password': 'example'})
+database = initPooledDB()
 
 class UnknownField(object):
     def __init__(self, *_, **__): pass

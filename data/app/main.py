@@ -41,6 +41,11 @@ def read_db():
 def insert_all():
     st.loadAllData()
 
+@app.get("/deleteAll/")
+def delete_all():
+    st.resetDB()
+    return read_table_cnt()
+
 # Update specified tweet 'like' count by specified amount
 # @app.get("/update/{add_likes}/{tw_id}")
 # def read_item(add_likes: int, tw_id: str = "1118876219381026818"):

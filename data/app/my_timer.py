@@ -3,8 +3,11 @@
 # https://stackoverflow.com/questions/1148309/how-to-calculate-time-elapsed-in-python
 from functools import wraps
 from time import perf_counter
+from my_logger import initTimeAnalysis_logger
 
 # This is a decorator that will time the function it expects at least one argument which could be (self)
+tL = initTimeAnalysis_logger()
+
 def timeit(f):
     @wraps(f)
     def wrap(*args, **kw):
@@ -20,5 +23,10 @@ def timeit(f):
             oString = "{:f} hours".format(time_elapsed/3600)
         print('func:%r args:[%r, %r] took: %r' %
               (f.__name__, args[1:], kw, oString))
-        return result
+        # if len(args) > 2:
+            # tL.info(f"{f.__name__} with {args[2:]} took {oString} seconds")
+        if result is not None:     
+            return result
+        else:
+            return time_elapsed
     return wrap

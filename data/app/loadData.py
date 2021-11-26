@@ -113,7 +113,7 @@ class Storage:
         # TODO: Do Something with the slice information
         return
 
-    def insertLibrary(self, fileName, chunkSize=250, verbose=False):
+    def insertLibrary(self, fileName, chunkSize, verbose=False):
         sl = self.load_data_file(fileName)
         try:
             self.handleSliceInfo(sl['info'])
@@ -133,7 +133,7 @@ class Storage:
         with self.db.atomic():
             # TODO optimize chunk size for mysql / engine
             for chunk in chunked(clean_pl, chunkSize):
-                print('\nInserting Playlists {}-{}'.format(pl_count,
+                print('Inserting Playlists {}-{}'.format(pl_count,
                       pl_count + len(chunk)))
                 pl_count += len(chunk)
                 # $ insert the tracks for each playlist
@@ -161,8 +161,9 @@ class Storage:
                     "timestamp": perf_counter(), "fileName": f}})
 
     @my_timer.timeit
-    def loadOneFile(self, fileName):
-        self.insertLibrary('/app/raw_data/' + fileName)
+    def loadOneFile(self, fileName, chunkSize=250):
+        self.insertLibrary('/app/raw_data/' + fileName, chunkSize)
+
 
     def fetchCounts(self):
         with self.db.atomic():
@@ -171,6 +172,11 @@ class Storage:
                 "Tracks": mT.select().count(),
                 "Playlists": mPL.select().count()
             }
+    def resetDB(self):
+        self.eLog.info("Resetting Database")
+        self.db.drop_tables([mPL, mT, mPC])
+        self.db.create_tables([mPL, mT, mPC])
+        self.eLog.info("Database Reset")
 
 # ===============
 # Chunk Size = 500
@@ -212,8 +218,31 @@ def main():
     print(status_after)
     s.writeLogs()
 
+# write a function that will take a file name and load it into the database
+# 
+def findBestChunkSize():
+    s = Storage()
+    tL = initTimeAnalysis_logger()
+    s.resetDB()
+    fName = "mpd.slice.0-999.json"
+    chunkSize=10
+    while chunkSize < 300:
+        sum = 0
+        for i in range(0, 3):
+            t = s.loadOneFile(fName, chunkSize)
+            sum += t
+        tL.info(f"Chunk Size: {chunkSize} Time: {sum/5}")
+        chunkSize+=10
+        s.resetDB()
+
+
+
 if __name__ == "__main__":
-    main()
+    findBestChunkSize()
+    # main()
+
+
+
 
 # TODO: add foreign key constraint to the tables after inserting all data
 # TODO: Graph the data/time to see how long it takes to load the data
