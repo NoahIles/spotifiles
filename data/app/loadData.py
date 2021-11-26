@@ -66,25 +66,25 @@ class Storage:
                 t.pop('pos', None)
         return cleaned
 
+    # Returns true if the database doesn't have the slice 
     def handleSliceInfo(self, sliceInfo):
         print("Reading in slice {} ".format(sliceInfo['slice']))
         self.sliceInfo = sliceInfo['slice']
-        # print("Slice info: {}".format(self.sliceInfo))
+        bounds = self.sliceInfo.split('-')
         self.eLog.info("Slice info: {}".format(self.sliceInfo))
-        # if the edges of the slice already exist, then we are done
-
-        # TODO: Do Something with the slice information smartly import it 
-        return
+        try:
+            mPL.get(mPL.pid == bounds[0])
+            mPL.get(mPL.pid == bounds[1])
+            return False
+        except DoesNotExist:
+            return True
 
     def insertLibrary(self, fileName, chunkSize, verbose=False):
         sl = self.load_data_file(fileName)
-        try:
-            self.handleSliceInfo(sl['info'])
-        except:
-            print("CAUGHT EXCEPTION!!!!:\nNo slice info\nAvailable Keys")
-            for key in sl:
-                print(key)
-            exit(1)
+        # check if the slice is already loaded
+        if(not self.handleSliceInfo(sl['info'])):
+            self.eLog.info(f"Slice {self.sliceInfo} already exists Skipping...")
+            return 
 
         clean_pl = self.cleanData(sl)
         pl_count = int((fileName.split('.')[2]).split('-')[0])

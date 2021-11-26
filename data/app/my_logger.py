@@ -34,6 +34,6 @@ def initTimeAnalysis_logger(folderName:str = 'timeTrials'):
     # I think I could use enumerate here but I'm not sure
     while os.path.isfile(logFileName) and os.stat(logFileName).st_size != 0:
         num += 1
-        logFileName = f"logs/timeTrials/{num}.json"
+        logFileName = f"logs/{folderName}/{num}.json"
     timeLog = my_logger(name='timeLogger', _fileName=logFileName, _formater=None)
     return timeLog
