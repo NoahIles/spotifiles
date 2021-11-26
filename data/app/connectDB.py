@@ -11,10 +11,10 @@ def connectPooledDB():
     if url is None:
         mL.DEBUG("DATABASE_URL is not set")
     else:
-        mL.info("DATABASE_URL is set")
+        # mL.info("DATABASE_URL is set")
         args = {'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True }
         db = connect(url, **args)
-        mL.info("Database connection established")
+        # mL.info("Database connection established")
     if db is None:
         mL.error("Database connection failed")
     return db

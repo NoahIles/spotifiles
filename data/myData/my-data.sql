@@ -5,15 +5,15 @@ use db1;
 -- drop table if exists playlists;
 -- TODO: add  {pl_image VARCHAR(100), }
 Create TABLE IF NOT EXISTS playlists(
-    pl_name VARCHAR(55) NOT NULL,
-    pl_followers INT(15) NOT NULL DEFAULT 0,
-    pl_duration INT(15) NOT NULL DEFAULT 0,
-    pl_num_tracks INT(15) NOT NULL DEFAULT 0,
-    pl_modified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    pl_num_artists INT(15) DEFAULT 0 NOT NULL,
-    pl_num_albums INT(15) DEFAULT 0 NOT NULL,
-    pl_edits INT(15)  DEFAULT 0 NOT NULL,
-    pl_id INT PRIMARY KEY NOT NULL,
+    _name VARCHAR(55) NOT NULL,
+    num_followers INT(15) NOT NULL DEFAULT 0,
+    duration_ms INT(15) NOT NULL DEFAULT 0,
+    num_tracks INT(15) NOT NULL DEFAULT 0,
+    modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    num_artists INT(15) DEFAULT 0 NOT NULL,
+    num_albums INT(15) DEFAULT 0 NOT NULL,
+    num_edits INT(15)  DEFAULT 0 NOT NULL,
+    pid INT PRIMARY KEY NOT NULL,
     pl_description VARCHAR(200),
     pl_owner VARCHAR(25),
     pl_owner_url VARCHAR(100)
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS playlist_Contents(
     -- FOREIGN KEY (playlist_id) REFERENCES playlists(pl_id) ON DELETE CASCADE,
 
 CREATE unique INDEX IF NOT EXISTS idx_playlist_Contents_playlist_id ON playlist_Contents(playlist_id, track_uri);
-CREATE unique INDEX IF NOT EXISTS idx_playlist on playlists(pl_id);
+CREATE unique INDEX IF NOT EXISTS idx_playlist on playlists(pid);
 CREATE unique INDEX IF NOT EXISTS idx_tracks on tracks(track_uri);
 
 SET GLOBAL local_infile = false;

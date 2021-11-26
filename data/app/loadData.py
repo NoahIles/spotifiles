@@ -225,15 +225,15 @@ def findBestChunkSize():
     tL = initTimeAnalysis_logger()
     s.resetDB()
     fName = "mpd.slice.0-999.json"
-    chunkSize=10
+    chunkSize=25
     while chunkSize < 300:
         sum = 0
         for i in range(0, 3):
             t = s.loadOneFile(fName, chunkSize)
             sum += t
-        tL.info(f"Chunk Size: {chunkSize} Time: {sum/5}")
-        chunkSize+=10
-        s.resetDB()
+            s.resetDB()
+        tL.info(f"Chunk Size: {chunkSize} Time: {sum/3}")
+        chunkSize+=25
 
 
 
