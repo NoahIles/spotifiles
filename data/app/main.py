@@ -1,10 +1,10 @@
 from loadData import Storage
 from fastapi import FastAPI
-from connectDB import connectDB, pooledConnectDB
+from connectDB import connectPooledDB
 # For Connection URL To MySQL Database
 
 app = FastAPI()
-db = pooledConnectDB()
+db = connectPooledDB()
 db.close()
 st = Storage()
 # This hook ensures that a connection is opened to handle any queries

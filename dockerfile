@@ -6,6 +6,7 @@
 
 # AN API interface for the app
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9-slim as fast_api
+ENV TZ=America/Los_Angeles
 COPY data/app /app
 RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -20,6 +21,8 @@ COPY --chown=root:root data/myData /myData
 COPY data/myData/initDB.sh /docker-entrypoint-initdb.d/initDB.sh
 RUN chmod +x /docker-entrypoint-initdb.d/initDB.sh
 EXPOSE 3306
+ENV TZ=America/Los_Angeles
+ENV MYSQL_ROOT_PASSWORD $MYSQL_ROOT_PASSWORD
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 #------------------------------------------------------------------------------
@@ -27,5 +30,6 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # The Pretty interface for the app
 FROM --platform=arm64 nginx:1.21.4-alpine as nginx_alpine
 COPY --chown=nginx:nginx data/nginx /nginx
+ENV TZ=America/Los_Angeles
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 #TODO: Work on the pretty interface

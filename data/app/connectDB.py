@@ -5,7 +5,7 @@ from playhouse.pool import PooledMySQLDatabase
 
 mL = initEvent_Logger()
 
-def connectDB():
+def connectPooledDB():
     url = os.environ.get('DATABASE_URL')
     db = None
     if url is None:
@@ -19,22 +19,19 @@ def connectDB():
         mL.error("Database connection failed")
     return db
 
-def pooledConnectDB():
+def initPooledDB():
     url = os.environ.get('DATABASE_URL')
     d = parse(url)
     d.update({'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True })
     db = PooledMySQLDatabase(d.pop('database'), **d)
+    # db = connect(url, "mysql+pool")
     return db
 
 
 if __name__ == '__main__':
-    # try:
-    #     connectDB()
-    #     print("Successfully connected to database")
-    # except Exception as e:
-    #     mL.error("Database connection failed")
-    #     print(e)
-    db = pooledConnectDB()
-    res = db.execute_sql('show tables')
-    for row in res:
-        print(row)
+    db = connectPooledDB()
+    print(db)
+    # print(db.is_closed())
+    # db.open()
+    with db.atomic():
+        print(db.get_tables())

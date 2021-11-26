@@ -20,8 +20,6 @@ services:
     container_name: l8-api
     environment:
       - DATABASE_URL
-      - TZ
-
   # Mysql Database 
   db: 
     build: 
@@ -43,7 +41,8 @@ services:
       - MYSQL_DATABASE
       - MYSQL_USER
       - MYSQL_PASSWORD
-      - TZ
+    env_file:
+      - .env
 
   # Nice Looking webserver uses fastAPI to get the data. 
   nginx:
@@ -60,8 +59,6 @@ services:
     container_name: l8-nginx
     depends_on:
       - db
-    environment:
-      - TZ
   
   #PHP-MYADMIN:
   adminer:
@@ -74,5 +71,3 @@ services:
     depends_on:
       - db
     container_name: l8-adminer
-    environment:
-      - TZ

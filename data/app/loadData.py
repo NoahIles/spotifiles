@@ -5,7 +5,7 @@ from peewee import *
 from playhouse.db_url import connect
 import pandas as pd
 
-from connectDB import pooledConnectDB
+from connectDB import connectPooledDB
 import models as myModels
 from my_logger import *
 import my_timer
@@ -16,7 +16,8 @@ mPC = myModels.PlaylistContents
 
 class Storage:
     def __init__(self):
-        self.db = connect(os.environ.get('DATABASE_URL'), reuse_if_open=True)
+        self.db = connectPooledDB()
+        # self.db = connect(os.environ['DATABASE_URL'])
         self.timeStamps = []
         self.eLog = initEvent_Logger()
         self.db.close()
@@ -25,7 +26,7 @@ class Storage:
     def __del__(self):
         self.db.close()
     
-    # write the timestamps to the logger file
+    #$ write the timestamps to the logger file
     def writeLogs(self):
         if len(self.timeStamps) == 0:
             print("Timestamps empty")
@@ -68,7 +69,7 @@ class Storage:
         return data
 
     # $ insert all the track data
-    @my_timer.timeit
+    # @my_timer.timeit
     def insertTracks(self, tracks, pl_id):
         num_tracks = len(tracks)
         # $ insert Playlist Content data
@@ -80,7 +81,7 @@ class Storage:
         mT.insert_many(tracks).on_conflict_ignore().execute()
         return
 
-    # Takes a data slice from mpd and cleans it up
+    #$ Takes a data slice from mpd and cleans it up
     def cleanData(self, data):
         clean_pl = []
         for pl in data['playlists']:
@@ -155,7 +156,7 @@ class Storage:
             if f.endswith('.json'):
                 self.timeStamps.append({"begin-load-file" : {
                     "timestamp": perf_counter(), "fileName": f}})
-                s.loadOneFile(f)
+                self.loadOneFile(f)
                 self.timeStamps.append({"end-load-file" :{
                     "timestamp": perf_counter(), "fileName": f}})
 
