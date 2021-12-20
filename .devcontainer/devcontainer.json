@@ -1,0 +1,31 @@
+// updated 19 December 2021 by Noah Iles
+// Assumes the existance of $HOME/.zsh_history & ./Dockerfile
+{
+	"name": "webDevEnv_465",
+
+	"dockerComposeFile": "${localWorkspaceFolder}/docker-compose.yml",
+	"service": "web",
+	// IF this file doesn't exist the bind mount will fail so create it. 
+	"initializeCommand": [
+	],
+
+	"workspaceFolder": "/code",
+
+	"extensions": [
+		"gruntfuggly.todo-tree",
+		"aaron-bond.better-comments",
+		"kevinkyang.auto-comment-blocks",
+		"github.copilot",
+		"davidanson.vscode-markdownlint",
+		"tomoki1207.pdf",
+		"usernamehw.errorlens",
+		"ms-vscode-remote.remote-containers",
+		"vscode-icons-team.vscode-icons",
+		"adammaras.overtype",
+		"esbenp.prettier-vscode",
+		"batisteo.vscode-django"
+	],
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+	},
+}
