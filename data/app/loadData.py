@@ -3,7 +3,7 @@ import json
 from time import perf_counter
 from peewee import *
 from playhouse.db_url import connect
-import pandas as pd
+# import pandas as pd
 
 from connectDB import connectPooledDB
 import models as myModels

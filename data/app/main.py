@@ -13,12 +13,6 @@ st = Storage()
 def startup():
     pass
 
-# This hook ensures that the connection is closed when we've finished
-# processing the request.
-# @app.on_event("shutdown")
-# def shutdown():
-#     if not db.is_closed():
-#         db.close()
 @app.get("/")
 def read_root():
     return {"hello": "world"}

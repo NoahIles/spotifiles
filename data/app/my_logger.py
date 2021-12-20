@@ -2,7 +2,6 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-
 # I don't need global loggers because if you getLogger of the same name it will return the same logger
 class my_logger():
     def __new__(self, name:str, _fileName:str = 'logs/mylog.log', _formater = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
