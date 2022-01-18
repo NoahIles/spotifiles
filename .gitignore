@@ -2,3 +2,4 @@ data/db/*
 **/__pycache__/*
 data/app/logs/**
 **/.DS_Store
+**/raw_data/**
