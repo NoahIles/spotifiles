@@ -32,3 +32,4 @@ A Dockerized Django web project implemented with GCP, spotipy, uses the spotify 
     + Search Specific Users Generated content
     + Search specific Geographic area's Content 
         - States Top 50 Songs 
+* Kubernetes? implemented with kind? 

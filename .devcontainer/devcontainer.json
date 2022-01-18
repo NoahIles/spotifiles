@@ -23,7 +23,8 @@
 		"vscode-icons-team.vscode-icons",
 		"adammaras.overtype",
 		"esbenp.prettier-vscode",
-		"batisteo.vscode-django"
+		"batisteo.vscode-django",
+		"ms-azuretools.vscode-docker"
 	],
 	// Set *default* container specific settings.json values on container create.
 	"settings": {

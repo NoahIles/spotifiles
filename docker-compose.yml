@@ -2,13 +2,14 @@ version: "3.9"
    
 services:
   db:
-    image: postgres
+    image: postgres:14.1
     volumes:
       - ./data/db:/var/lib/postgresql/data
   web:
     build:
-        context: .devcontainer/
+        context: ./
         dockerfile: Dockerfile
+        target: mypython
     working_dir: /code/spotifiles/
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
